@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -62,7 +63,54 @@ class DashboardController extends Controller
             'description' => $request->deskripsi,
         ]);
 
+        // $adminFee = $adminProfit + $adminChannel;
+
         return redirect()->route('dashboard.products')->with('success', 'Product added successfully');
+    }
+
+    // store product with transaction
+    public function storeProductTransaction(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'nama' => 'required|string',
+            'berat' => 'required|integer',
+            'harga' => 'required|integer',
+            'stok' => 'required|integer',
+            'kondisi' => 'required|in:Bekas,Baru',
+            'deskripsi' => 'required|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('dashboard.products.add')
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            $file = $request->file('image');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $file->move('storage/products', $fileName);
+
+            Product::create([
+                'user_id' => Auth::user()->id,
+                'image' => '/storage/products/' . $fileName,
+                'name' => $request->nama,
+                'weight' => $request->berat,
+                'price' => $request->harga,
+                'condition' => $request->kondisi,
+                'stock' => $request->stok,
+                'description' => $request->deskripsi,
+            ]);
+
+            $adminFee = $adminProfit + $adminChannel;
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 
     // edit product
@@ -114,6 +162,117 @@ class DashboardController extends Controller
         $product->save();
 
         return redirect()->route('dashboard.products')->with('success', 'Product updated successfully');
+    }
+
+    // update product pcc
+    public function updateProductPCC(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'image' => 'image|mimes:jpeg,png,jpg|max:2048',
+            'nama' => 'required|string',
+            'berat' => 'required|integer',
+            'harga' => 'required|integer',
+            'stok' => 'required|integer',
+            'kondisi' => 'required|in:Bekas,Baru',
+            'deskripsi' => 'required|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('dashboard.products.edit', $id)
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        DB::beginTransaction();
+        try {
+            // $product = Product::sharedLock()->find($id);
+
+            $product = Product::lockForUpdate()->find($id);
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->move('storage/products', $fileName);
+
+                $imagePath = public_path($product->image);
+                if (file_exists($imagePath))
+                    unlink($imagePath);
+
+                $product->image = '/storage/products/' . $fileName;
+            }
+
+            $product->name = $request->nama;
+            $product->weight = $request->berat;
+            $product->price = $request->harga;
+            $product->condition = $request->kondisi;
+            $product->stock = $request->stok;
+            $product->description = $request->deskripsi;
+            $product->save();
+
+            // delay 10 seconds
+            sleep(10);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return redirect()->route('dashboard.products')->with('success', 'Product updated successfully');
+    }
+
+    // update product occ
+    public function updateProductOCC(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'image' => 'image|mimes:jpeg,png,jpg|max:2048',
+            'nama' => 'required|string',
+            'berat' => 'required|integer',
+            'harga' => 'required|integer',
+            'stok' => 'required|integer',
+            'kondisi' => 'required|in:Bekas,Baru',
+            'deskripsi' => 'required|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('dashboard.products.edit', $id)
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        try {
+            // optimistic locking with version
+            $product = Product::where('id', $id)->where('version', $request->version)->first();
+
+            if (!$product)
+                return redirect()->route('dashboard.products.edit', $id)->with('error', 'Product has been updated by another user');
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->move('storage/products', $fileName);
+
+                $imagePath = public_path($product->image);
+                if (file_exists($imagePath))
+                    unlink($imagePath);
+
+                $product->image = '/storage/products/' . $fileName;
+            }
+
+            $product->name = $request->nama;
+            $product->weight = $request->berat;
+            $product->price = $request->harga;
+            $product->condition = $request->kondisi;
+            $product->stock = $request->stok;
+            $product->description = $request->deskripsi;
+            $product->version++;
+            $product->save();
+
+            return redirect()->route('dashboard.products')->with('success', 'Product updated successfully');
+        } catch (\Exception $e) {
+            throw $e;
+            abort(500);
+        }
     }
 
     // delete product

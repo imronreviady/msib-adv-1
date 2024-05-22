@@ -14,7 +14,7 @@
             <div class="col-md-4 offset-4 rounded bg-info mt-3 py-3">
                 <h2 class="text-center fw-bold" style="font-size: 20px">Edit Data Produk {{ $product->id }}</h2>
                 <form class="mt-3"
-                    action="{{ route('dashboard.products.update', ['id' => $product->id]) }}"
+                    action="{{ route('dashboard.products.update-occ', ['id' => $product->id]) }}"
                     method="POST" enctype="multipart/form-data">
                     @method('PUT')
                     @csrf
@@ -87,6 +87,8 @@
                             </span>
                         @enderror
                     </div>
+                    <!-- hidden input version -->
+                    <input type="hidden" name="version" value="{{ $product->version }}">
                     <div class="d-flex">
                         <div class="mx-auto">
                             <a href="{{ route('dashboard.products') }}" class="btn btn-warning me-2">

@@ -42,6 +42,15 @@ Route::prefix('dashboard')->middleware('authentication')->group(function () {
         Route::put('/update/{id}', [DashboardController::class, 'updateProduct'])->name('dashboard.products.update');
         Route::post('/delete/{id}', [DashboardController::class, 'deleteProduct'])->name('dashboard.products.delete');
         Route::get('/export', [DashboardController::class, 'exportProduct'])->name('dashboard.products.export');
+
+        // store product with transaction
+        Route::post('/store-transaction', [DashboardController::class, 'storeProductTransaction'])->name('dashboard.products.store-transaction');
+
+        // update pcc
+        Route::put('/update-pcc/{id}', [DashboardController::class, 'updateProductPCC'])->name('dashboard.products.update-pcc');
+
+        // update occ
+        Route::put('/update-occ/{id}', [DashboardController::class, 'updateProductOCC'])->name('dashboard.products.update-occ');
     });
 
     // Users

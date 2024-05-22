@@ -40,7 +40,7 @@
                                         @enderror
                                     </div>
 
-                                    <button type="submit" class="btn btn-lg btn-primary w-100">Register</button>
+                                    <button type="submit" class="btn btn-lg btn-primary w-100">Login</button>
                                 </form>
                             </div>
                         </div>
